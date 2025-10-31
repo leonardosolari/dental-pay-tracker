@@ -15,7 +15,7 @@ def get_rate():
 def paga_rata(rata_id):
     rata = Rata.query.get_or_404(rata_id)
     rata.stato = 'pagata'
-    rata.data_pagamento = datetime.utcnow()
+    rata.data_pagamento = datetime.utcnow().date()
     db.session.commit()
     return jsonify(rata.to_dict())
 
@@ -27,7 +27,7 @@ def update_rata(rata_id):
     if 'ammontare' in data:
         rata.ammontare = float(data['ammontare'])
     if 'dataScadenza' in data:
-        rata.data_scadenza = datetime.strptime(data['dataScadenza'], '%Y-%m-%d')
+        rata.data_scadenza = datetime.strptime(data['dataScadenza'], '%Y-%m-%d').date()
         
     db.session.commit()
     return jsonify(rata.to_dict())

@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.db
+backend/app/*.db
+backend/app/dental_tracker.db
+backend/app/dental_tracker.db

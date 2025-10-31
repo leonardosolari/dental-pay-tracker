@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pagamento, Paziente, ModalitaPagamento } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, FileText, CreditCard, Loader2, Check, ChevronsUpDown, UserPlus } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, FileText, CreditCard, Loader2, Check, ChevronsUpDown, UserPlus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+
+// --- TIPI LOCALI ---
+interface RataInput {
+  ammontare: number;
+  dataScadenza: Date;
+}
 
 // --- FUNZIONI API ---
 const fetchPagamenti = async (): Promise<Pagamento[]> => {
@@ -30,7 +37,13 @@ const fetchPazienti = async (): Promise<Paziente[]> => {
   return data.map(p => ({...p, dataCreazione: new Date(p.dataCreazione)}));
 };
 
-const addPagamento = async (pagamentoData: Omit<Pagamento, "id" | "dataCreazione">) => {
+const addPagamento = async (pagamentoData: {
+    pazienteId: string;
+    nomeLavoro?: string;
+    modalita: ModalitaPagamento;
+    totale: number;
+    rate: { ammontare: number; dataScadenza: string }[];
+}) => {
     const res = await fetch("http://127.0.0.1:5000/api/pagamenti", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,8 +76,43 @@ export default function Pagamenti() {
     nomeLavoro: "",
     modalita: "unico" as ModalitaPagamento,
     totale: 0,
-    numeroRate: 2,
+    numeroRate: 1,
+    rate: [] as RataInput[],
   });
+
+  useEffect(() => {
+    const { totale, modalita, numeroRate } = newPagamento;
+    if (totale <= 0) {
+      setNewPagamento(prev => ({ ...prev, rate: [] }));
+      return;
+    }
+
+    const numRate = modalita === 'unico' ? 1 : numeroRate;
+    if (numRate <= 0) {
+        setNewPagamento(prev => ({ ...prev, rate: [] }));
+        return;
+    }
+
+    const ammontareRata = parseFloat((totale / numRate).toFixed(2));
+    const newRate: RataInput[] = [];
+
+    for (let i = 0; i < numRate; i++) {
+      newRate.push({
+        ammontare: ammontareRata,
+        dataScadenza: addMonths(new Date(), i + 1),
+      });
+    }
+    
+    if (numRate > 0) {
+        const totalCalculated = newRate.reduce((sum, r) => sum + r.ammontare, 0);
+        const difference = totale - totalCalculated;
+        if (Math.abs(difference) > 0.001) {
+            newRate[newRate.length - 1].ammontare += difference;
+        }
+    }
+
+    setNewPagamento(prev => ({ ...prev, rate: newRate }));
+  }, [newPagamento.totale, newPagamento.numeroRate, newPagamento.modalita]);
 
   const { data: pagamenti = [], isLoading: isLoadingPagamenti } = useQuery({ queryKey: ['pagamenti'], queryFn: fetchPagamenti });
   const { data: pazienti = [], isLoading: isLoadingPazienti } = useQuery({ queryKey: ['pazienti'], queryFn: fetchPazienti });
@@ -99,7 +147,7 @@ export default function Pagamenti() {
   const handleDialogStateChange = (isOpen: boolean) => {
     setDialogOpen(isOpen);
     if (!isOpen) {
-      setNewPagamento({ pazienteId: "", nomeLavoro: "", modalita: "unico", totale: 0, numeroRate: 2 });
+      setNewPagamento({ pazienteId: "", nomeLavoro: "", modalita: "unico", totale: 0, numeroRate: 1, rate: [] });
       setSearchValue("");
       setComboboxOpen(false);
     }
@@ -110,7 +158,29 @@ export default function Pagamenti() {
       toast({ title: "Errore", description: "Paziente e totale sono obbligatori.", variant: "destructive" });
       return;
     }
-    addPagamentoMutation.mutate(newPagamento);
+    if (newPagamento.rate.length === 0) {
+        toast({ title: "Errore", description: "Nessuna rata definita per il pagamento.", variant: "destructive" });
+        return;
+    }
+
+    const totalFromRate = newPagamento.rate.reduce((sum, r) => sum + r.ammontare, 0);
+    if (Math.abs(newPagamento.totale - totalFromRate) > 0.01) {
+        toast({ title: "Errore", description: "La somma delle rate non corrisponde al totale.", variant: "destructive" });
+        return;
+    }
+
+    const payload = {
+        pazienteId: newPagamento.pazienteId,
+        nomeLavoro: newPagamento.nomeLavoro,
+        modalita: newPagamento.modalita,
+        totale: newPagamento.totale,
+        rate: newPagamento.rate.map(r => ({
+            ...r,
+            ammontare: parseFloat(r.ammontare.toFixed(2)),
+            dataScadenza: format(r.dataScadenza, "yyyy-MM-dd")
+        }))
+    };
+    addPagamentoMutation.mutate(payload);
   };
 
   const handleCreatePaziente = () => {
@@ -206,7 +276,7 @@ export default function Pagamenti() {
               </div>
               <div>
                 <Label>Modalità di Pagamento *</Label>
-                <RadioGroup value={newPagamento.modalita} onValueChange={(v) => setNewPagamento({ ...newPagamento, modalita: v as ModalitaPagamento })} className="mt-2">
+                <RadioGroup value={newPagamento.modalita} onValueChange={(v) => setNewPagamento({ ...newPagamento, modalita: v as ModalitaPagamento, numeroRate: v === 'unico' ? 1 : 2 })} className="mt-2">
                   <div className="flex items-center space-x-2"><RadioGroupItem value="unico" id="unico" /><Label htmlFor="unico" className="font-normal">Pagamento Unico</Label></div>
                   <div className="flex items-center space-x-2"><RadioGroupItem value="rate" id="rate" /><Label htmlFor="rate" className="font-normal">Pagamento a Rate</Label></div>
                 </RadioGroup>
@@ -215,7 +285,56 @@ export default function Pagamenti() {
                 <div>
                   <Label htmlFor="numeroRate">Numero di Rate *</Label>
                   <Input id="numeroRate" type="number" min="2" value={newPagamento.numeroRate} onChange={(e) => setNewPagamento({ ...newPagamento, numeroRate: parseInt(e.target.value) || 2 })} />
-                  {newPagamento.totale > 0 && newPagamento.numeroRate > 1 && (<p className="mt-2 text-sm text-muted-foreground">Ammontare rata: €{(newPagamento.totale / newPagamento.numeroRate).toFixed(2)} x {newPagamento.numeroRate} rate mensili</p>)}
+                </div>
+              )}
+              {newPagamento.rate.length > 0 && (
+                <div className="space-y-3 rounded-md border p-4 max-h-60 overflow-y-auto">
+                    <h4 className="font-medium text-sm">Dettaglio Scadenze</h4>
+                    {newPagamento.rate.map((rata, index) => (
+                        <div key={index} className="flex items-center gap-2 flex-wrap">
+                            <Label htmlFor={`rata-ammontare-${index}`} className="text-sm text-muted-foreground w-20 min-w-fit">Rata {index + 1}:</Label>
+                            <Input
+                                id={`rata-ammontare-${index}`}
+                                type="number"
+                                step="0.01"
+                                value={rata.ammontare.toFixed(2)}
+                                onChange={(e) => {
+                                    const updatedRate = [...newPagamento.rate];
+                                    updatedRate[index].ammontare = parseFloat(e.target.value) || 0;
+                                    setNewPagamento(prev => ({ ...prev, rate: updatedRate }));
+                                }}
+                                className="w-32"
+                            />
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-[240px] justify-start text-left font-normal",
+                                            !rata.dataScadenza && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {rata.dataScadenza ? format(rata.dataScadenza, "PPP", { locale: it }) : <span>Scegli una data</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={rata.dataScadenza}
+                                        onSelect={(date) => {
+                                            if (date) {
+                                                const updatedRate = [...newPagamento.rate];
+                                                updatedRate[index].dataScadenza = date;
+                                                setNewPagamento(prev => ({ ...prev, rate: updatedRate }));
+                                            }
+                                        }}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    ))}
                 </div>
               )}
               <Button onClick={handleAddPagamento} disabled={addPagamentoMutation.isPending} className="w-full">
