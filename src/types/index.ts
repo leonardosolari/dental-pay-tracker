@@ -22,6 +22,7 @@ export type StatoRata = "pagata" | "scadenza_oggi" | "scaduta" | "futura";
 export interface Rata {
   id: string;
   pagamentoId: string;
+  pazienteId?: string;
   numeroRata: number;
   totaleRate: number;
   ammontare: number;

@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Calendar, Euro, Edit2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 interface RataCardProps {
   rata: Rata;
@@ -46,13 +47,17 @@ export default function RataCard({ rata, onEdit, onPaga }: RataCardProps) {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground">
-              {rata.pazienteNome || "Paziente non trovato"}
+              {rata.pazienteId ? (
+                <Link to={`/pazienti/${rata.pazienteId}`} className="hover:underline">
+                  {rata.pazienteNome || "Paziente non trovato"}
+                </Link>
+              ) : (
+                rata.pazienteNome || "Paziente non trovato"
+              )}
             </h3>
             <Badge variant={getBadgeVariant(rata.stato)}>{getBadgeText(rata.stato)}</Badge>
           </div>
-          {rata.nomeLavoro && (
-            <p className="mt-1 text-sm text-muted-foreground">{rata.nomeLavoro}</p>
-          )}
+          {rata.nomeLavoro && <p className="mt-1 text-sm text-muted-foreground">{rata.nomeLavoro}</p>}
           <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
             <div className="flex items-center gap-1 text-muted-foreground">
               <Calendar className="h-4 w-4" />

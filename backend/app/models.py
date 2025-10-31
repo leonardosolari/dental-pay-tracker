@@ -64,6 +64,7 @@ class Rata(db.Model):
         return {
             "id": str(self.id),
             "pagamentoId": str(self.pagamento_id),
+            "pazienteId": str(self.pagamento.paziente_id),
             "numeroRata": self.numero_rata,
             "totaleRate": self.totale_rate,
             "ammontare": self.ammontare,

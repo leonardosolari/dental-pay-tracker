@@ -110,7 +110,9 @@ export default function PagamentoDetail() {
                 <User className="h-6 w-6 text-muted-foreground"/>
                 <div>
                     <p className="text-sm text-muted-foreground">Paziente</p>
-                    <p className="font-medium">{pagamento.pazienteNome}</p>
+                    <Link to={`/pazienti/${pagamento.pazienteId}`}>
+                        <p className="font-medium hover:underline">{pagamento.pazienteNome}</p>
+                    </Link>
                 </div>
             </div>
             <div className="flex items-center gap-3 rounded-md border p-4">
