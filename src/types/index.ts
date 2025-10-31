@@ -14,6 +14,7 @@ export interface Pagamento {
   modalita: ModalitaPagamento;
   totale: number;
   dataCreazione: Date;
+  pazienteNome?: string;
 }
 
 export type StatoRata = "pagata" | "scadenza_oggi" | "scaduta" | "futura";
@@ -27,4 +28,6 @@ export interface Rata {
   dataScadenza: Date;
   dataPagamento?: Date;
   stato: StatoRata;
+  pazienteNome?: string;
+  nomeLavoro?: string;
 }

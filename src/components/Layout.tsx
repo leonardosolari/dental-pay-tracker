@@ -20,7 +20,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <FileText className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground">Studio Dentistico</h1>
+              <h1 className="text-lg font-bold text-foreground">Scadenze Studio</h1>
               <p className="text-xs text-muted-foreground">Gestione Pagamenti</p>
             </div>
           </div>

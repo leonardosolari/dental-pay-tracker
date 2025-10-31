@@ -2,7 +2,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Rata } from "@/types";
-import { mockPagamenti, mockPazienti } from "@/lib/mockData";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Calendar, Euro, Edit2, CheckCircle2 } from "lucide-react";
@@ -15,17 +14,14 @@ interface RataCardProps {
 }
 
 export default function RataCard({ rata, onEdit, onPaga }: RataCardProps) {
-  const pagamento = mockPagamenti.find((p) => p.id === rata.pagamentoId);
-  const paziente = mockPazienti.find((p) => p.id === pagamento?.pazienteId);
-
   const getBadgeVariant = (stato: Rata["stato"]) => {
     switch (stato) {
       case "pagata":
-        return "default";
+        return "default"; // 'default' in shadcn è solitamente il colore primario (es. blu o verde a seconda del tema)
       case "scadenza_oggi":
-        return "secondary";
+        return "secondary"; // Puoi personalizzare questo colore se vuoi
       case "scaduta":
-        return "destructive";
+        return "destructive"; // Rosso
       default:
         return "outline";
     }
@@ -50,12 +46,12 @@ export default function RataCard({ rata, onEdit, onPaga }: RataCardProps) {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground">
-              {paziente?.nome} {paziente?.cognome}
+              {rata.pazienteNome || "Paziente non trovato"}
             </h3>
             <Badge variant={getBadgeVariant(rata.stato)}>{getBadgeText(rata.stato)}</Badge>
           </div>
-          {pagamento?.nomeLavoro && (
-            <p className="mt-1 text-sm text-muted-foreground">{pagamento.nomeLavoro}</p>
+          {rata.nomeLavoro && (
+            <p className="mt-1 text-sm text-muted-foreground">{rata.nomeLavoro}</p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
             <div className="flex items-center gap-1 text-muted-foreground">
