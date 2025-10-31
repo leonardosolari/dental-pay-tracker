@@ -3,23 +3,24 @@ version: '3.8'
 
 services:
   backend:
+    container_name: dental_pay_tracker_backend # <-- AGGIUNGI QUESTO
     build:
       context: ./backend
-      dockerfile: Dockerfile # Usa il Dockerfile di produzione del backend
+      dockerfile: Dockerfile
     volumes:
-      # Volume per persistere il database SQLite tra un avvio e l'altro
       - db-data:/app/app
     expose:
-      - "5000" # Esponi la porta solo alla rete interna di Docker
+      - "5000"
     networks:
       - dental-app-net
 
   frontend:
+    container_name: dental_pay_tracker_frontend # <-- AGGIUNGI QUESTO
     build:
       context: .
-      dockerfile: Dockerfile # Usa il Dockerfile di produzione del frontend (con Nginx)
+      dockerfile: Dockerfile
     ports:
-      - "8080:80" # Mappa la porta 80 di Nginx (nel container) alla 8080 del tuo PC
+      - "8080:80"
     depends_on:
       - backend
     networks:
@@ -31,4 +32,3 @@ networks:
 
 volumes:
   db-data:
-    # Questo volume conterrà il file del database
