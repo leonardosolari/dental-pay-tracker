@@ -16,9 +16,16 @@ def add_paziente():
     if not data or not 'nome' in data or not 'cognome' in data:
         return jsonify({'error': 'Nome e cognome sono obbligatori'}), 400
 
+    # Formatta nome e cognome: rimuovi spazi e applica la capitalizzazione (es. "mario rossi" -> "Mario Rossi")
+    nome = data['nome'].strip().title()
+    cognome = data['cognome'].strip().title()
+
+    if not nome or not cognome:
+        return jsonify({'error': 'Nome e cognome non possono essere vuoti'}), 400
+
     nuovo_paziente = Paziente(
-        nome=data['nome'],
-        cognome=data['cognome']
+        nome=nome,
+        cognome=cognome
     )
     db.session.add(nuovo_paziente)
     db.session.commit()

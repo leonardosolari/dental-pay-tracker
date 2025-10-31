@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, FileText, CreditCard, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, FileText, CreditCard, Loader2, Check, ChevronsUpDown, UserPlus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 // --- FUNZIONI API ---
 const fetchPagamenti = async (): Promise<Pagamento[]> => {
@@ -28,7 +30,7 @@ const fetchPazienti = async (): Promise<Paziente[]> => {
   return data.map(p => ({...p, dataCreazione: new Date(p.dataCreazione)}));
 };
 
-const addPagamento = async (pagamentoData: any) => {
+const addPagamento = async (pagamentoData: Omit<Pagamento, "id" | "dataCreazione">) => {
     const res = await fetch("http://127.0.0.1:5000/api/pagamenti", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -38,9 +40,24 @@ const addPagamento = async (pagamentoData: any) => {
     return res.json();
 }
 
+const addPaziente = async (newPaziente: { nome: string; cognome: string }): Promise<Paziente> => {
+    const response = await fetch("http://127.0.0.1:5000/api/pazienti", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPaziente),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Errore nell'aggiunta del paziente");
+    }
+    return response.json();
+};
+
 export default function Pagamenti() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
   const [newPagamento, setNewPagamento] = useState({
     pazienteId: "",
     nomeLavoro: "",
@@ -52,13 +69,12 @@ export default function Pagamenti() {
   const { data: pagamenti = [], isLoading: isLoadingPagamenti } = useQuery({ queryKey: ['pagamenti'], queryFn: fetchPagamenti });
   const { data: pazienti = [], isLoading: isLoadingPazienti } = useQuery({ queryKey: ['pazienti'], queryFn: fetchPazienti });
 
-  const mutation = useMutation({
+  const addPagamentoMutation = useMutation({
     mutationFn: addPagamento,
     onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['pagamenti'] });
-        queryClient.invalidateQueries({ queryKey: ['rate'] }); // Invalida anche le rate
+        queryClient.invalidateQueries({ queryKey: ['rate'] });
         setDialogOpen(false);
-        setNewPagamento({ pazienteId: "", nomeLavoro: "", modalita: "unico", totale: 0, numeroRate: 2 });
         toast({ title: "Pagamento creato con successo!" });
     },
     onError: (error) => {
@@ -66,14 +82,58 @@ export default function Pagamenti() {
     }
   });
 
+  const addPazienteMutation = useMutation({
+    mutationFn: addPaziente,
+    onSuccess: (newlyCreatedPaziente) => {
+        queryClient.invalidateQueries({ queryKey: ['pazienti'] });
+        setNewPagamento(prev => ({ ...prev, pazienteId: newlyCreatedPaziente.id }));
+        setComboboxOpen(false);
+        setSearchValue("");
+        toast({ title: "Paziente creato e selezionato!" });
+    },
+    onError: (error: Error) => {
+        toast({ title: "Errore", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const handleDialogStateChange = (isOpen: boolean) => {
+    setDialogOpen(isOpen);
+    if (!isOpen) {
+      setNewPagamento({ pazienteId: "", nomeLavoro: "", modalita: "unico", totale: 0, numeroRate: 2 });
+      setSearchValue("");
+      setComboboxOpen(false);
+    }
+  };
+
   const handleAddPagamento = () => {
     if (!newPagamento.pazienteId || !newPagamento.totale || newPagamento.totale <= 0) {
       toast({ title: "Errore", description: "Paziente e totale sono obbligatori.", variant: "destructive" });
       return;
     }
-    mutation.mutate(newPagamento);
+    addPagamentoMutation.mutate(newPagamento);
   };
+
+  const handleCreatePaziente = () => {
+    const fullName = searchValue.trim();
+    const names = fullName.split(/\s+/).filter(n => n);
+    if (names.length < 2) {
+        toast({ title: "Input non valido", description: "Per creare un nuovo paziente, inserisci sia nome che cognome.", variant: "destructive" });
+        return;
+    }
+    const cognome = names.pop() as string;
+    const nome = names.join(" ");
+    addPazienteMutation.mutate({ nome, cognome });
+  };
+
+  const filteredPazienti = searchValue === ""
+    ? pazienti
+    : pazienti.filter(p => 
+        `${p.nome} ${p.cognome}`.toLowerCase().includes(searchValue.toLowerCase())
+      );
   
+  const canCreatePaziente = filteredPazienti.length === 0 && searchValue.trim().split(/\s+/).filter(n => n).length >= 2;
+  const selectedPaziente = pazienti.find(p => p.id === newPagamento.pazienteId);
+
   if (isLoadingPagamenti || isLoadingPazienti) {
       return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
   }
@@ -85,17 +145,56 @@ export default function Pagamenti() {
           <h1 className="text-3xl font-bold text-foreground">Pagamenti</h1>
           <p className="mt-2 text-muted-foreground">Gestisci i pagamenti e le rate</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={handleDialogStateChange}>
           <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />Nuovo Pagamento</Button></DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader><DialogTitle>Crea Nuovo Pagamento</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="paziente">Paziente *</Label>
-                <Select value={newPagamento.pazienteId} onValueChange={(v) => setNewPagamento({ ...newPagamento, pazienteId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Seleziona un paziente" /></SelectTrigger>
-                  <SelectContent>{pazienti.map((p) => (<SelectItem key={p.id} value={p.id}>{p.nome} {p.cognome}</SelectItem>))}</SelectContent>
-                </Select>
+                <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={comboboxOpen} className="w-full justify-between font-normal">
+                      {selectedPaziente ? `${selectedPaziente.nome} ${selectedPaziente.cognome}` : "Seleziona o crea un paziente..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput placeholder="Cerca per nome e cognome..." value={searchValue} onValueChange={setSearchValue} />
+                      <CommandList>
+                        <CommandEmpty>Nessun paziente trovato. Inserisci nome e cognome per creare un nuovo paziente.</CommandEmpty>
+                        <CommandGroup>
+                          {filteredPazienti.map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                value={`${p.nome} ${p.cognome}`}
+                                onSelect={() => {
+                                  setNewPagamento({ ...newPagamento, pazienteId: p.id });
+                                  setComboboxOpen(false);
+                                  setSearchValue("");
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", newPagamento.pazienteId === p.id ? "opacity-100" : "opacity-0")} />
+                                {p.nome} {p.cognome}
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                        <CommandGroup>
+                            <CommandItem
+                                onSelect={handleCreatePaziente}
+                                disabled={addPazienteMutation.isPending}
+                                className="cursor-pointer"
+                                style={{ display: canCreatePaziente ? 'flex' : 'none' }}
+                            >
+                            {addPazienteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                            Crea e seleziona "{searchValue}"
+                            </CommandItem>
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label htmlFor="nomeLavoro">Nome Lavoro (Facoltativo)</Label>
@@ -119,8 +218,8 @@ export default function Pagamenti() {
                   {newPagamento.totale > 0 && newPagamento.numeroRate > 1 && (<p className="mt-2 text-sm text-muted-foreground">Ammontare rata: €{(newPagamento.totale / newPagamento.numeroRate).toFixed(2)} x {newPagamento.numeroRate} rate mensili</p>)}
                 </div>
               )}
-              <Button onClick={handleAddPagamento} disabled={mutation.isPending} className="w-full">
-                {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Crea Pagamento'}
+              <Button onClick={handleAddPagamento} disabled={addPagamentoMutation.isPending} className="w-full">
+                {addPagamentoMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Crea Pagamento'}
               </Button>
             </div>
           </DialogContent>
