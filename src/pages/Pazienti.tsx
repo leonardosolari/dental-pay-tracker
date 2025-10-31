@@ -12,6 +12,8 @@ import { it } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
+const API_BASE_URL = "/api";
+
 // Funzione per recuperare i pazienti dal backend
 const fetchPazienti = async (): Promise<Paziente[]> => {
   const response = await fetch(`${API_BASE_URL}/pazienti`);
