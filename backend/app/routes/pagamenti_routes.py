@@ -48,3 +48,29 @@ def add_pagamento():
 
     db.session.commit()
     return jsonify(nuovo_pagamento.to_dict()), 201
+
+@bp.route('/pagamenti/<int:pagamento_id>', methods=['PUT'])
+def update_pagamento(pagamento_id):
+    pagamento = Pagamento.query.get_or_404(pagamento_id)
+    data = request.get_json()
+
+    if 'nomeLavoro' in data:
+        pagamento.nome_lavoro = data['nomeLavoro']
+    
+    if 'totale' in data and float(data['totale']) != pagamento.totale:
+        nuovo_totale = float(data['totale'])
+        pagamento.totale = nuovo_totale
+        
+        if pagamento.modalita == 'rate' and len(pagamento.rate) > 0:
+            num_rate = len(pagamento.rate)
+            ammontare_base = round(nuovo_totale / num_rate, 2)
+            resto = round(nuovo_totale - (ammontare_base * num_rate), 2)
+            
+            for i, rata in enumerate(pagamento.rate):
+                if i == num_rate - 1: # Aggiungi il resto all'ultima rata
+                    rata.ammontare = ammontare_base + resto
+                else:
+                    rata.ammontare = ammontare_base
+
+    db.session.commit()
+    return jsonify(pagamento.to_dict())

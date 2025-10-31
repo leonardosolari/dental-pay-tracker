@@ -28,6 +28,15 @@ def update_rata(rata_id):
         rata.ammontare = float(data['ammontare'])
     if 'dataScadenza' in data:
         rata.data_scadenza = datetime.strptime(data['dataScadenza'], '%Y-%m-%d').date()
+    
+    if 'stato' in data:
+        if data['stato'] == 'pagata' and rata.stato != 'pagata':
+            rata.stato = 'pagata'
+            rata.data_pagamento = datetime.utcnow().date()
+        elif data['stato'] != 'pagata' and rata.stato == 'pagata':
+            # Permette di annullare un pagamento
+            rata.stato = 'futura' 
+            rata.data_pagamento = None
         
     db.session.commit()
     return jsonify(rata.to_dict())

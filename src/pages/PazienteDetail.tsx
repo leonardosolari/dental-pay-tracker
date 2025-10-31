@@ -156,7 +156,14 @@ export default function PazienteDetail() {
                   <div>
                     <p className="font-medium">
                       Rata {rata.numeroRata} di {rata.totaleRate}
-                      {rata.nomeLavoro && <span className="font-normal text-muted-foreground"> - {rata.nomeLavoro}</span>}
+                      {rata.nomeLavoro && (
+                        <span className="font-normal text-muted-foreground">
+                          {" - "}
+                          <Link to={`/pagamenti/${rata.pagamentoId}`} className="hover:underline">
+                            {rata.nomeLavoro}
+                          </Link>
+                        </span>
+                      )}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Scaduta il {format(rata.dataScadenza, "dd/MM/yyyy")}
@@ -191,7 +198,11 @@ export default function PazienteDetail() {
               <TableBody>
                 {pagamenti.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell>{p.nomeLavoro || "-"}</TableCell>
+                    <TableCell>
+                      <Link to={`/pagamenti/${p.id}`} className="hover:underline">
+                        {p.nomeLavoro || "-"}
+                      </Link>
+                    </TableCell>
                     <TableCell>€{p.totale.toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge variant={p.modalita === "rate" ? "secondary" : "outline"}>

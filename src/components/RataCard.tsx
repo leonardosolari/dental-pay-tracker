@@ -57,7 +57,13 @@ export default function RataCard({ rata, onEdit, onPaga }: RataCardProps) {
             </h3>
             <Badge variant={getBadgeVariant(rata.stato)}>{getBadgeText(rata.stato)}</Badge>
           </div>
-          {rata.nomeLavoro && <p className="mt-1 text-sm text-muted-foreground">{rata.nomeLavoro}</p>}
+          {rata.nomeLavoro && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              <Link to={`/pagamenti/${rata.pagamentoId}`} className="hover:underline">
+                {rata.nomeLavoro}
+              </Link>
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
             <div className="flex items-center gap-1 text-muted-foreground">
               <Calendar className="h-4 w-4" />

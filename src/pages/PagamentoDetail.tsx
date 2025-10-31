@@ -1,14 +1,19 @@
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pagamento, Rata } from "@/types";
+import { Pagamento, Rata, StatoRata } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ArrowLeft, User, FileText, Euro, Calendar, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowLeft, User, FileText, Euro, Calendar, CheckCircle2, Loader2, Edit, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API_BASE_URL = "http://127.0.0.1:5000/api";
@@ -33,15 +38,61 @@ const pagaRata = async (rataId: string) => {
     return res.json();
 }
 
+const updatePagamento = async (pagamentoData: { id: string; nomeLavoro: string; totale: number }): Promise<Pagamento> => {
+    const { id, ...data } = pagamentoData;
+    const res = await fetch(`${API_BASE_URL}/pagamenti/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error("Errore nell'aggiornamento del pagamento");
+    return res.json();
+}
+
+const updateRata = async (rataData: { id: string; ammontare: number; dataScadenza: string; stato: StatoRata }) => {
+    const { id, ...data } = rataData;
+    const res = await fetch(`${API_BASE_URL}/rate/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error("Errore nell'aggiornamento della rata");
+    return res.json();
+}
+
 export default function PagamentoDetail() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const [isPagamentoEditDialogOpen, setIsPagamentoEditDialogOpen] = useState(false);
+  const [editPagamentoForm, setEditPagamentoForm] = useState({ nomeLavoro: "", totale: 0 });
+  
+  const [editingRata, setEditingRata] = useState<Rata | null>(null);
+  const [editRataForm, setEditRataForm] = useState({ ammontare: 0, dataScadenza: "", stato: "futura" as StatoRata });
 
   const { data: pagamento, isLoading: isLoadingPagamento, isError: isErrorPagamento } = useQuery({
     queryKey: ["pagamento", id],
     queryFn: () => fetchPagamento(id!),
     enabled: !!id,
   });
+
+  useEffect(() => {
+    if (pagamento) {
+        setEditPagamentoForm({
+            nomeLavoro: pagamento.nomeLavoro || "",
+            totale: pagamento.totale
+        });
+    }
+  }, [pagamento]);
+
+  useEffect(() => {
+    if (editingRata) {
+        setEditRataForm({
+            ammontare: editingRata.ammontare,
+            dataScadenza: format(editingRata.dataScadenza, "yyyy-MM-dd"),
+            stato: editingRata.stato === 'pagata' ? 'pagata' : 'futura'
+        });
+    }
+  }, [editingRata]);
 
   const { data: rate = [], isLoading: isLoadingRate } = useQuery({
     queryKey: ["ratePagamento", id],
@@ -53,10 +104,47 @@ export default function PagamentoDetail() {
     mutationFn: pagaRata,
     onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['ratePagamento', id] });
-        queryClient.invalidateQueries({ queryKey: ['rate'] }); // Invalida anche la cache della dashboard
+        queryClient.invalidateQueries({ queryKey: ['rate'] });
         toast({ title: "Pagamento registrato!" });
     }
   });
+
+  const updatePagamentoMutation = useMutation({
+    mutationFn: updatePagamento,
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['pagamento', id] });
+        queryClient.invalidateQueries({ queryKey: ['ratePagamento', id] });
+        queryClient.invalidateQueries({ queryKey: ['pagamenti'] });
+        setIsPagamentoEditDialogOpen(false);
+        toast({ title: "Pagamento aggiornato con successo!" });
+    },
+    onError: (error) => {
+        toast({ title: "Errore", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const updateRataMutation = useMutation({
+    mutationFn: updateRata,
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['ratePagamento', id] });
+        queryClient.invalidateQueries({ queryKey: ['rate'] });
+        setEditingRata(null);
+        toast({ title: "Rata aggiornata con successo!" });
+    },
+    onError: (error) => {
+        toast({ title: "Errore", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const handleSavePagamentoChanges = () => {
+    if (!id) return;
+    updatePagamentoMutation.mutate({ id, ...editPagamentoForm });
+  }
+
+  const handleSaveRataChanges = () => {
+    if (!editingRata) return;
+    updateRataMutation.mutate({ id: editingRata.id, ...editRataForm });
+  }
 
   const getBadgeVariant = (stato: Rata["stato"]) => {
     switch (stato) {
@@ -96,14 +184,19 @@ export default function PagamentoDetail() {
       </Link>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-3 text-2xl">
-            <FileText className="h-6 w-6" />
-            {pagamento.nomeLavoro || "Pagamento generico"}
-          </CardTitle>
-          <CardDescription>
-            Dettagli del piano di pagamento
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-3 text-2xl">
+              <FileText className="h-6 w-6" />
+              {pagamento.nomeLavoro || "Pagamento generico"}
+            </CardTitle>
+            <CardDescription>
+              Dettagli del piano di pagamento
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="icon" onClick={() => setIsPagamentoEditDialogOpen(true)}>
+            <Edit className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="flex items-center gap-3 rounded-md border p-4">
@@ -156,7 +249,10 @@ export default function PagamentoDetail() {
                   <TableCell>
                     {rata.dataPagamento ? format(rata.dataPagamento, "dd MMM yyyy", { locale: it }) : "-"}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
+                    <Button variant="ghost" size="icon" onClick={() => setEditingRata(rata)}>
+                        <Edit2 className="h-4 w-4" />
+                    </Button>
                     {rata.stato !== 'pagata' && (
                       <Button 
                         variant="outline" 
@@ -175,6 +271,68 @@ export default function PagamentoDetail() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isPagamentoEditDialogOpen} onOpenChange={setIsPagamentoEditDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Modifica Pagamento</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <div>
+                    <Label htmlFor="nomeLavoro">Nome Lavoro</Label>
+                    <Input id="nomeLavoro" value={editPagamentoForm.nomeLavoro} onChange={(e) => setEditPagamentoForm({...editPagamentoForm, nomeLavoro: e.target.value})} />
+                </div>
+                <div>
+                    <Label htmlFor="totale">Totale (€)</Label>
+                    <Input id="totale" type="number" step="0.01" value={editPagamentoForm.totale} onChange={(e) => setEditPagamentoForm({...editPagamentoForm, totale: parseFloat(e.target.value) || 0})} />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsPagamentoEditDialogOpen(false)}>Annulla</Button>
+                <Button onClick={handleSavePagamentoChanges} disabled={updatePagamentoMutation.isPending}>
+                    {updatePagamentoMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salva Modifiche
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingRata} onOpenChange={() => setEditingRata(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Modifica Rata {editingRata?.numeroRata}/{editingRata?.totaleRate}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <div>
+                    <Label htmlFor="rata-ammontare">Ammontare (€)</Label>
+                    <Input id="rata-ammontare" type="number" step="0.01" value={editRataForm.ammontare} onChange={(e) => setEditRataForm({...editRataForm, ammontare: parseFloat(e.target.value) || 0})} />
+                </div>
+                <div>
+                    <Label htmlFor="rata-dataScadenza">Data Scadenza</Label>
+                    <Input id="rata-dataScadenza" type="date" value={editRataForm.dataScadenza} onChange={(e) => setEditRataForm({...editRataForm, dataScadenza: e.target.value})} />
+                </div>
+                <div>
+                    <Label htmlFor="rata-stato">Stato</Label>
+                    <Select value={editRataForm.stato} onValueChange={(value) => setEditRataForm({...editRataForm, stato: value as StatoRata})}>
+                        <SelectTrigger id="rata-stato">
+                            <SelectValue placeholder="Seleziona uno stato" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="futura">Da Pagare</SelectItem>
+                            <SelectItem value="pagata">Pagata</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingRata(null)}>Annulla</Button>
+                <Button onClick={handleSaveRataChanges} disabled={updateRataMutation.isPending}>
+                    {updateRataMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salva Modifiche
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
