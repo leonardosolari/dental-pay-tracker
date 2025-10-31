@@ -24,7 +24,8 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { ArrowLeft, Edit, User, FileText, AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
-const API_BASE_URL = "http://127.0.0.1:5000/api";
+const API_BASE_URL = "/api";
+
 
 const fetchPaziente = async (id: string): Promise<Paziente> => {
   const res = await fetch(`${API_BASE_URL}/pazienti/${id}`);

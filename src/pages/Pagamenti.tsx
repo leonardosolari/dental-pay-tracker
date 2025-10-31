@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Link } from "react-router-dom";
 
+const API_BASE_URL = "/api";
+
 // --- TIPI LOCALI ---
 interface RataInput {
   ammontare: number;
@@ -25,14 +27,14 @@ interface RataInput {
 
 // --- FUNZIONI API ---
 const fetchPagamenti = async (): Promise<Pagamento[]> => {
-  const res = await fetch("http://127.0.0.1:5000/api/pagamenti");
+  const res = await fetch(`${API_BASE_URL}/pagamenti`);
   if (!res.ok) throw new Error("Errore nel fetch dei pagamenti");
   const data = await res.json();
   return data.map(p => ({...p, dataCreazione: new Date(p.dataCreazione)}));
 };
 
 const fetchPazienti = async (): Promise<Paziente[]> => {
-  const res = await fetch("http://127.0.0.1:5000/api/pazienti");
+  const res = await fetch(`${API_BASE_URL}/pazienti`);
   if (!res.ok) throw new Error("Errore nel fetch dei pazienti");
   const data = await res.json();
   return data.map(p => ({...p, dataCreazione: new Date(p.dataCreazione)}));
@@ -45,7 +47,7 @@ const addPagamento = async (pagamentoData: {
     totale: number;
     rate: { ammontare: number; dataScadenza: string }[];
 }) => {
-    const res = await fetch("http://127.0.0.1:5000/api/pagamenti", {
+    const res = await fetch(`${API_BASE_URL}/pagamenti`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pagamentoData)
@@ -55,7 +57,7 @@ const addPagamento = async (pagamentoData: {
 }
 
 const addPaziente = async (newPaziente: { nome: string; cognome: string }): Promise<Paziente> => {
-    const response = await fetch("http://127.0.0.1:5000/api/pazienti", {
+    const response = await fetch(`${API_BASE_URL}/pazienti`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPaziente),

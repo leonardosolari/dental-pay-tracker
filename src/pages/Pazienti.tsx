@@ -14,7 +14,7 @@ import { Link } from "react-router-dom";
 
 // Funzione per recuperare i pazienti dal backend
 const fetchPazienti = async (): Promise<Paziente[]> => {
-  const response = await fetch("http://127.0.0.1:5000/api/pazienti");
+  const response = await fetch(`${API_BASE_URL}/pazienti`);
   if (!response.ok) {
     throw new Error("Errore nel recupero dei pazienti");
   }
@@ -25,7 +25,7 @@ const fetchPazienti = async (): Promise<Paziente[]> => {
 
 // Funzione per aggiungere un nuovo paziente tramite API
 const addPaziente = async (newPaziente: { nome: string; cognome: string }): Promise<Paziente> => {
-  const response = await fetch("http://127.0.0.1:5000/api/pazienti", {
+  const response = await fetch(`${API_BASE_URL}/pazienti`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

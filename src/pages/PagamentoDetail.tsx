@@ -26,7 +26,7 @@ import { it } from "date-fns/locale";
 import { ArrowLeft, User, FileText, Euro, Calendar, CheckCircle2, Loader2, Edit, Edit2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const API_BASE_URL = "http://127.0.0.1:5000/api";
+const API_BASE_URL = "/api";
 
 const fetchPagamento = async (id: string): Promise<Pagamento> => {
   const res = await fetch(`${API_BASE_URL}/pagamenti/${id}`);

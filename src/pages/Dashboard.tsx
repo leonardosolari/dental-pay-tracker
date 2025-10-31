@@ -11,23 +11,25 @@ import { Calendar, AlertCircle, Clock, Users, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
+const API_BASE_URL = "/api";
+
 // --- API FUNCTIONS ---
 const fetchRate = async (): Promise<Rata[]> => {
-    const res = await fetch("http://127.0.0.1:5000/api/rate");
+    const res = await fetch(`${API_BASE_URL}/rate`);
     if (!res.ok) throw new Error("Errore fetch rate");
     const data = await res.json();
     return data.map(r => ({...r, dataScadenza: new Date(r.dataScadenza)}));
 }
 
 const fetchPazientiCount = async (): Promise<number> => {
-    const res = await fetch("http://127.0.0.1:5000/api/pazienti");
+    const res = await fetch(`${API_BASE_URL}/pazienti`);
     if (!res.ok) throw new Error("Errore fetch pazienti");
     const data = await res.json();
     return data.length;
 }
 
 const updateRata = async (rataData: {id: string; ammontare: number; dataScadenza: string}) => {
-    const res = await fetch(`http://127.0.0.1:5000/api/rate/${rataData.id}`, {
+    const res = await fetch(`${API_BASE_URL}/rate/${rataData.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ammontare: rataData.ammontare, dataScadenza: rataData.dataScadenza})
@@ -37,7 +39,7 @@ const updateRata = async (rataData: {id: string; ammontare: number; dataScadenza
 }
 
 const pagaRata = async (rataId: string) => {
-    const res = await fetch(`http://127.0.0.1:5000/api/rate/${rataId}/paga`, { method: 'POST' });
+    const res = await fetch(`${API_BASE_URL}/rate/${rataId}/paga`, { method: 'POST' });
     if (!res.ok) throw new Error("Errore pagamento rata");
     return res.json();
 }
