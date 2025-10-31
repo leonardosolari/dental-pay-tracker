@@ -292,3 +292,5 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/python,flask
 
 *.pyc
+*.pyc
+/backend/app/__pycache__

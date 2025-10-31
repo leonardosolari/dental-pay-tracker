@@ -1,10 +1,20 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Paziente, Pagamento, Rata } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ArrowLeft, Edit, User, FileText, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit, User, FileText, AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
 const API_BASE_URL = "http://127.0.0.1:5000/api";
 
@@ -47,11 +57,18 @@ const updatePaziente = async (pazienteData: { id: string; nome: string; cognome:
   return res.json();
 };
 
+const deletePaziente = async (id: string): Promise<void> => {
+  const res = await fetch(`${API_BASE_URL}/pazienti/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Errore nell'eliminazione del paziente.");
+};
+
 export default function PazienteDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({ nome: "", cognome: "" });
 
   const {
@@ -89,6 +106,18 @@ export default function PazienteDetail() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deletePaziente,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pazienti"] });
+      toast({ title: "Paziente eliminato con successo!" });
+      navigate("/pazienti");
+    },
+    onError: (error) => {
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleEditClick = () => {
     if (paziente) {
       setEditForm({ nome: paziente.nome, cognome: paziente.cognome });
@@ -99,6 +128,12 @@ export default function PazienteDetail() {
   const handleSaveChanges = () => {
     if (id) {
       updateMutation.mutate({ id, ...editForm });
+    }
+  };
+
+  const handleDelete = () => {
+    if (id) {
+      deleteMutation.mutate(id);
     }
   };
 
@@ -132,9 +167,14 @@ export default function PazienteDetail() {
               Registrato il {format(paziente.dataCreazione, "dd MMMM yyyy", { locale: it })}
             </CardDescription>
           </div>
-          <Button variant="outline" size="icon" onClick={handleEditClick}>
-            <Edit className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="icon" onClick={handleEditClick}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="destructive" size="icon" onClick={() => setIsDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
       </Card>
 
@@ -250,6 +290,27 @@ export default function PazienteDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Sei assolutamente sicuro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Questa azione non può essere annullata. Verrà eliminato permanentemente il paziente e tutti i suoi dati, inclusi i piani di pagamento e le rate associate.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={deleteMutation.isPending}
+                >
+                    {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Sì, elimina paziente'}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

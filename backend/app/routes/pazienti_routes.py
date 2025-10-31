@@ -55,6 +55,13 @@ def update_paziente(paziente_id):
     db.session.commit()
     return jsonify(paziente.to_dict())
 
+@bp.route('/pazienti/<int:paziente_id>', methods=['DELETE'])
+def delete_paziente(paziente_id):
+    paziente = Paziente.query.get_or_404(paziente_id)
+    db.session.delete(paziente)
+    db.session.commit()
+    return jsonify({'message': 'Paziente eliminato con successo'}), 200
+
 @bp.route('/pazienti/<int:paziente_id>/pagamenti', methods=['GET'])
 def get_pagamenti_paziente(paziente_id):
     paziente = Paziente.query.get_or_404(paziente_id)

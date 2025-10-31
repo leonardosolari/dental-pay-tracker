@@ -74,3 +74,10 @@ def update_pagamento(pagamento_id):
 
     db.session.commit()
     return jsonify(pagamento.to_dict())
+
+@bp.route('/pagamenti/<int:pagamento_id>', methods=['DELETE'])
+def delete_pagamento(pagamento_id):
+    pagamento = Pagamento.query.get_or_404(pagamento_id)
+    db.session.delete(pagamento)
+    db.session.commit()
+    return jsonify({'message': 'Pagamento eliminato con successo'}), 200

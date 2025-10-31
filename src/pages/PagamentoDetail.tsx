@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pagamento, Rata, StatoRata } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ArrowLeft, User, FileText, Euro, Calendar, CheckCircle2, Loader2, Edit, Edit2 } from "lucide-react";
+import { ArrowLeft, User, FileText, Euro, Calendar, CheckCircle2, Loader2, Edit, Edit2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API_BASE_URL = "http://127.0.0.1:5000/api";
@@ -60,10 +70,17 @@ const updateRata = async (rataData: { id: string; ammontare: number; dataScadenz
     return res.json();
 }
 
+const deletePagamento = async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/pagamenti/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error("Errore nell'eliminazione del pagamento");
+};
+
 export default function PagamentoDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isPagamentoEditDialogOpen, setIsPagamentoEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editPagamentoForm, setEditPagamentoForm] = useState({ nomeLavoro: "", totale: 0 });
   
   const [editingRata, setEditingRata] = useState<Rata | null>(null);
@@ -136,6 +153,19 @@ export default function PagamentoDetail() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deletePagamento,
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['pagamenti'] });
+        queryClient.invalidateQueries({ queryKey: ['rate'] });
+        toast({ title: "Pagamento eliminato con successo!" });
+        navigate("/pagamenti");
+    },
+    onError: (error) => {
+        toast({ title: "Errore", description: error.message, variant: "destructive" });
+    }
+  });
+
   const handleSavePagamentoChanges = () => {
     if (!id) return;
     updatePagamentoMutation.mutate({ id, ...editPagamentoForm });
@@ -144,6 +174,11 @@ export default function PagamentoDetail() {
   const handleSaveRataChanges = () => {
     if (!editingRata) return;
     updateRataMutation.mutate({ id: editingRata.id, ...editRataForm });
+  }
+
+  const handleDelete = () => {
+    if (!id) return;
+    deleteMutation.mutate(id);
   }
 
   const getBadgeVariant = (stato: Rata["stato"]) => {
@@ -194,9 +229,14 @@ export default function PagamentoDetail() {
               Dettagli del piano di pagamento
             </CardDescription>
           </div>
-          <Button variant="outline" size="icon" onClick={() => setIsPagamentoEditDialogOpen(true)}>
-            <Edit className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="icon" onClick={() => setIsPagamentoEditDialogOpen(true)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="destructive" size="icon" onClick={() => setIsDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="flex items-center gap-3 rounded-md border p-4">
@@ -333,6 +373,27 @@ export default function PagamentoDetail() {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Questa azione non può essere annullata. Verrà eliminato permanentemente il piano di pagamento e tutte le rate associate.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={deleteMutation.isPending}
+                >
+                    {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Elimina'}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
