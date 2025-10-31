@@ -15,6 +15,7 @@ import { format, addMonths } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
+import { Link } from "react-router-dom";
 
 // --- TIPI LOCALI ---
 interface RataInput {
@@ -347,22 +348,24 @@ export default function Pagamenti() {
 
       <div className="grid gap-4">
         {pagamenti.map((pagamento) => (
-          <Card key={pagamento.id} className="p-6 transition-shadow hover:shadow-md">
-            <div className="flex items-start justify-between">
-              <div className="flex gap-4">
-                <div className="rounded-lg bg-accent/10 p-3">{pagamento.modalita === "unico" ? <CreditCard className="h-6 w-6 text-accent" /> : <FileText className="h-6 w-6 text-accent" />}</div>
-                <div>
-                  <h3 className="font-semibold text-foreground">{pagamento.pazienteNome}</h3>
-                  {pagamento.nomeLavoro && <p className="mt-1 text-sm text-muted-foreground">{pagamento.nomeLavoro}</p>}
-                  <div className="mt-3 flex items-center gap-4 text-sm">
-                    <span className="font-semibold text-foreground">€{pagamento.totale.toFixed(2)}</span>
-                    <span className="text-muted-foreground">{pagamento.modalita === "unico" ? "Pagamento unico" : "Pagamento rateale"}</span>
-                    <span className="text-muted-foreground">{format(pagamento.dataCreazione, "dd MMM yyyy", { locale: it })}</span>
+          <Link to={`/pagamenti/${pagamento.id}`} key={pagamento.id} className="block">
+            <Card className="p-6 transition-shadow hover:shadow-md h-full">
+              <div className="flex items-start justify-between">
+                <div className="flex gap-4">
+                  <div className="rounded-lg bg-accent/10 p-3">{pagamento.modalita === "unico" ? <CreditCard className="h-6 w-6 text-accent" /> : <FileText className="h-6 w-6 text-accent" />}</div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">{pagamento.pazienteNome}</h3>
+                    {pagamento.nomeLavoro && <p className="mt-1 text-sm text-muted-foreground">{pagamento.nomeLavoro}</p>}
+                    <div className="mt-3 flex items-center gap-4 text-sm">
+                      <span className="font-semibold text-foreground">€{pagamento.totale.toFixed(2)}</span>
+                      <span className="text-muted-foreground">{pagamento.modalita === "unico" ? "Pagamento unico" : "Pagamento rateale"}</span>
+                      <span className="text-muted-foreground">{format(pagamento.dataCreazione, "dd MMM yyyy", { locale: it })}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
         ))}
       </div>
       

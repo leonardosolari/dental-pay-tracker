@@ -11,6 +11,16 @@ def get_pagamenti():
     pagamenti = Pagamento.query.order_by(Pagamento.data_creazione.desc()).all()
     return jsonify([p.to_dict() for p in pagamenti])
 
+@bp.route('/pagamenti/<int:pagamento_id>', methods=['GET'])
+def get_pagamento(pagamento_id):
+    pagamento = Pagamento.query.get_or_404(pagamento_id)
+    return jsonify(pagamento.to_dict())
+
+@bp.route('/pagamenti/<int:pagamento_id>/rate', methods=['GET'])
+def get_rate_pagamento(pagamento_id):
+    rate = Rata.query.filter_by(pagamento_id=pagamento_id).order_by(Rata.numero_rata.asc()).all()
+    return jsonify([r.to_dict() for r in rate])
+
 @bp.route('/pagamenti', methods=['POST'])
 def add_pagamento():
     data = request.get_json()
