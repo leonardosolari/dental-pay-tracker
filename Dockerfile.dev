@@ -1,0 +1,28 @@
+# dental-pay-tracker/Dockerfile.dev
+
+# Partiamo da un'immagine Node.js, che contiene tutto il necessario per lo sviluppo.
+FROM node:20-alpine
+
+# Impostiamo la directory di lavoro all'interno del container.
+WORKDIR /app
+
+# Copiamo i file di definizione delle dipendenze.
+# Lo facciamo separatamente per sfruttare la cache di Docker: se non cambiano,
+# non rieseguiremo 'npm install' ad ogni build.
+COPY package.json package-lock.json ./
+
+# Installiamo le dipendenze
+RUN npm install
+
+# Copiamo il resto del codice sorgente.
+# Grazie ai volumi in docker-compose.dev.yml, questo codice verrà
+# "sovrascritto" da quello sulla tua macchina, permettendo l'hot-reload.
+COPY . .
+
+# Esponiamo la porta del dev server di Vite.
+EXPOSE 8080
+
+# Il comando di default per avviare il dev server.
+# Verrà comunque sovrascritto dal 'command' in docker-compose.dev.yml,
+# ma è una buona pratica definirlo.
+CMD ["npm", "run", "dev"]

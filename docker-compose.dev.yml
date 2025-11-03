@@ -1,0 +1,34 @@
+# dental-pay-tracker/docker-compose.dev.yml
+version: '3.8'
+
+services:
+  backend:
+    container_name: dental_pay_tracker_backend_dev
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+    command: flask run --host=0.0.0.0 --port=5000 --debug
+    networks:
+      - dental-app-net
+
+  frontend:
+    container_name: dental_pay_tracker_frontend_dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: npm run dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    networks:
+      - dental-app-net
+
+networks:
+  dental-app-net:
+    driver: bridge
